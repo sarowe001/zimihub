@@ -1,16 +1,15 @@
 // জিমিহাব (ZimiHub) — AI Gateway ডাটাবেস স্কিমা
 //
-// ডেভেলপমেন্টে SQLite ব্যবহার করা হয়েছে (কোনো সেটআপ ছাড়াই চলে)।
-// প্রোডাকশনে যেতে চাইলে datasource এর provider "postgresql" করে
-// DATABASE_URL কে আপনার Postgres কানেকশন স্ট্রিং দিয়ে বদলে দিন।
-// (Decimal টাইপ SQLite ও Postgres দুটোতেই কাজ করে, তাই স্কিমা বদলাতে হবে না।)
+// PostgreSQL ব্যবহার করা হয়েছে, কারণ Vercel-এর মতো serverless হোস্টে ফাইলসিস্টেম
+// অস্থায়ী — সেখানে SQLite চলে না। ফ্রি Postgres পেতে Neon / Vercel Postgres /
+// Supabase ব্যবহার করতে পারেন; কানেকশন স্ট্রিং DATABASE_URL-এ বসান।
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
