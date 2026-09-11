@@ -48,7 +48,9 @@ function formatPrice(n: number) {
 }
 
 export default async function Home() {
-  const models = await listActiveModels();
+  // ডাটাবেস এখনো যোগ করা না হলেও ল্যান্ডিং পেজটা যেন খোলে — শুধু দামের টেবিলটা
+  // খালি দেখাবে, পুরো পেজ ৫০০ এরর হবে না।
+  const models = await listActiveModels().catch(() => []);
 
   return (
     <>
