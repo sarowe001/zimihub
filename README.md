@@ -8,21 +8,51 @@ OpenAI, Anthropic, DeepSeek, Google-এর মডেল ব্যবহার �
 ## টেক স্ট্যাক
 
 - **Next.js 16** (App Router, TypeScript) + **Tailwind CSS 4**
-- **Prisma 6** + SQLite (ডেভ) — প্রোডাকশনে সহজেই Postgres-এ বদলানো যায়
+- **Prisma 6** + PostgreSQL (migration সহ)
 - **NextAuth v5** (Credentials — ইমেইল/পাসওয়ার্ড)
 - **Recharts** (ব্যবহারের চার্ট)
 
 ## দ্রুত শুরু (ডেভেলপমেন্ট)
 
+আগে একটি PostgreSQL ডাটাবেস লাগবে — সবচেয়ে সহজ উপায় [neon.tech](https://neon.tech)
+থেকে ফ্রি একটা নেওয়া (মোবাইল ব্রাউজার থেকেও করা যায়), তারপর কানেকশন স্ট্রিংটা
+`.env`-এর `DATABASE_URL`-এ বসানো।
+
 ```bash
 npm install
-cp .env.example .env      # ইতিমধ্যে করা থাকলে বাদ দিন
-npx prisma db push        # SQLite ডাটাবেস তৈরি করবে
+cp .env.example .env      # DATABASE_URL ও AUTH_SECRET বসান
+npx prisma migrate deploy # টেবিল তৈরি করবে
 npm run db:seed           # ডেমো মডেল ও দাম সিড করবে
 npm run dev
 ```
 
 `http://localhost:3000` খুলুন। সাইনআপ করলেই ২৫ টাকা ফ্রি ব্যালেন্স পাবেন।
+
+## Vercel-এ ডিপ্লয়
+
+1. **ডাটাবেস নিন** — Vercel Postgres, [Neon](https://neon.tech) বা Supabase থেকে।
+   Vercel-এ **pooled** কানেকশন স্ট্রিং ব্যবহার করুন (Neon-এ হোস্টনামে `-pooler`
+   থাকে) — serverless-এ অনেক কানেকশন খুলে যায় বলে এটা জরুরি।
+
+2. **Environment Variables বসান** (Vercel → Project → Settings → Environment Variables):
+
+   | নাম | আবশ্যক? | মান |
+   | --- | --- | --- |
+   | `DATABASE_URL` | ✅ হ্যাঁ | Postgres pooled কানেকশন স্ট্রিং |
+   | `AUTH_SECRET` | ✅ হ্যাঁ | `openssl rand -base64 32` দিয়ে বানানো র‍্যান্ডম স্ট্রিং |
+   | `OPENAI_API_KEY` ইত্যাদি | মডেল কল করতে | সংশ্লিষ্ট প্রোভাইডারের key |
+   | `BKASH_*` / `NAGAD_*` | পেমেন্ট চালু করতে | মার্চেন্ট ক্রেডেনশিয়াল |
+
+   `DATABASE_URL` বা `AUTH_SECRET` না দিলে বিল্ড/লগইন ব্যর্থ হবে।
+
+3. **ডিপ্লয় করুন** — `npm run build` নিজেই `prisma generate` ও
+   `prisma migrate deploy` চালায়, তাই টেবিল আপনাআপনি তৈরি হয়ে যাবে।
+
+4. **প্রথমবার মডেল সিড করুন** — লোকাল মেশিনে প্রোডাকশনের `DATABASE_URL` বসিয়ে
+   একবার `npm run db:seed` চালান, অথবা এডমিন প্যানেল থেকে মডেল যোগ করুন।
+
+5. **কলব্যাক URL আপডেট করুন** — `BKASH_CALLBACK_URL` ও `NAGAD_CALLBACK_URL`-এ
+   `localhost`-এর বদলে আপনার আসল ডোমেইন বসান।
 
 ## প্রজেক্ট গঠন
 
@@ -139,14 +169,16 @@ GOOGLE_API_KEY=...
 কোনো একটা key না থাকলে সেই provider-এর মডেল কল করলে স্পষ্ট এরর মেসেজ
 দেখাবে (ব্যালেন্স কাটবে না)।
 
-## প্রোডাকশনে যেতে
+## প্রোডাকশনে যাওয়ার চেকলিস্ট
 
-- **ডাটাবেস:** `prisma/schema.prisma`-তে `provider = "postgresql"` করুন,
-  `DATABASE_URL` বদলান, `npx prisma db push` চালান।
-- **AUTH_SECRET:** `openssl rand -base64 32` দিয়ে নতুন সিক্রেট বানান।
-- **NEXTAUTH_URL / APP_URL:** আপনার আসল ডোমেইন বসান।
+- **AUTH_SECRET:** `openssl rand -base64 32` দিয়ে নতুন সিক্রেট বানিয়ে বসান
+  (প্রোডাকশনে এটা না দিলে লগইন কাজ করবে না)।
+- **DATABASE_URL:** pooled Postgres কানেকশন স্ট্রিং।
+- **APP_URL** ও কলব্যাক URL-গুলোতে আসল ডোমেইন বসান।
 - সব `BKASH_*` / `NAGAD_*` sandbox URL প্রোডাকশন URL-এ বদলান এবং লাইভ
   ক্রেডেনশিয়াল বসান।
+- স্কিমা বদলালে `npx prisma migrate dev --name <নাম>` দিয়ে migration বানান —
+  ডিপ্লয়ের সময় সেটা নিজে থেকেই অ্যাপ্লাই হবে।
 
 ## এখনো যা যোগ করা যেতে পারে
 

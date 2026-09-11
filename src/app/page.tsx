@@ -3,6 +3,10 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { listActiveModels } from "@/lib/models";
 
+// পেজটি ডাটাবেস থেকে মডেলের দাম পড়ে, তাই বিল্ডের সময় প্রি-রেন্ডার না করে
+// প্রতি রিকোয়েস্টে রেন্ডার করা হয় (বিল্ড মেশিনে ডাটাবেস না-ও থাকতে পারে)।
+export const dynamic = "force-dynamic";
+
 const FEATURES = [
   {
     title: "এক API, শতাধিক মডেল",
