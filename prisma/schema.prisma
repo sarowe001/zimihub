@@ -1,0 +1,151 @@
+// জিমিহাব (ZimiHub) — AI Gateway ডাটাবেস স্কিমা
+//
+// ডেভেলপমেন্টে SQLite ব্যবহার করা হয়েছে (কোনো সেটআপ ছাড়াই চলে)।
+// প্রোডাকশনে যেতে চাইলে datasource এর provider "postgresql" করে
+// DATABASE_URL কে আপনার Postgres কানেকশন স্ট্রিং দিয়ে বদলে দিন।
+// (Decimal টাইপ SQLite ও Postgres দুটোতেই কাজ করে, তাই স্কিমা বদলাতে হবে না।)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum TransactionMethod {
+  BKASH
+  NAGAD
+  MANUAL
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum UsageStatus {
+  SUCCESS
+  ERROR
+  FALLBACK
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  // ব্যালেন্স পয়সায় (Taka * 100) সংরক্ষণ করা হয়, ভাসমান-বিন্দু ত্রুটি এড়াতে
+  balancePoisha Int     @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  apiKeys      ApiKey[]
+  transactions Transaction[]
+  usageLogs    UsageLog[]
+
+  @@index([email])
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  // ব্যবহারকারীকে দেখানো prefix, যেমন: zh_live_ab12cd34 (পুরো key শুধু তৈরির সময় একবার দেখানো হয়)
+  keyPrefix  String
+  // পূর্ণ API key-র SHA-256 হ্যাশ — plaintext কখনো সংরক্ষণ করা হয় না
+  keyHash    String    @unique
+  revoked    Boolean   @default(false)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  usageLogs  UsageLog[]
+
+  @@index([userId])
+}
+
+model Provider {
+  id        String   @id @default(cuid())
+  slug      String   @unique // openai, anthropic, deepseek, google, sensenova
+  name      String
+  baseUrl   String
+  // .env-এ থাকা environment variable-এর নাম, যেখানে আসল provider API key রাখা হয়
+  apiKeyEnv String
+  enabled   Boolean  @default(true)
+  models    Model[]
+}
+
+model Model {
+  id               String   @id @default(cuid())
+  providerId       String
+  provider         Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  // অনুরোধে ব্যবহারকারী যে নাম দিয়ে মডেল চাইবে, যেমন: gpt-4o-mini, claude-sonnet-5
+  modelId          String   @unique
+  displayName      String
+  // provider-এর কাছে পাঠানোর সময়ের প্রকৃত মডেল আইডি (ভিন্ন হতে পারে)
+  upstreamModelId  String
+  isFree           Boolean  @default(false)
+  enabled          Boolean  @default(true)
+  // প্রতি ১০ লক্ষ (মিলিয়ন) টোকেনে টাকা (Decimal, ২ দশমিক ঘর পর্যন্ত)
+  inputPricePerMTokTaka  Decimal @default(0)
+  outputPricePerMTokTaka Decimal @default(0)
+  // ব্যর্থ হলে/না পাওয়া গেলে কোন মডেলে fallback হবে
+  fallbackModelId  String?
+  fallbackModel    Model?   @relation("ModelFallback", fields: [fallbackModelId], references: [id])
+  fallbacksFrom    Model[]  @relation("ModelFallback")
+
+  usageLogs UsageLog[]
+
+  @@index([providerId])
+}
+
+model UsageLog {
+  id              String      @id @default(cuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKeyId        String
+  apiKey          ApiKey      @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  modelDbId       String?
+  model           Model?      @relation(fields: [modelDbId], references: [id])
+  requestedModel  String
+  promptTokens    Int         @default(0)
+  completionTokens Int        @default(0)
+  totalTokens     Int         @default(0)
+  costPoisha      Int         @default(0)
+  status          UsageStatus @default(SUCCESS)
+  errorMessage    String?
+  createdAt       DateTime    @default(now())
+
+  @@index([userId])
+  @@index([apiKeyId])
+  @@index([createdAt])
+}
+
+model Transaction {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  method      TransactionMethod
+  status      TransactionStatus @default(PENDING)
+  amountTaka  Decimal
+  // bKash paymentID / Nagad paymentReferenceId
+  providerRef String?           @unique
+  // gateway থেকে পাওয়া চূড়ান্ত trxID
+  trxId       String?
+  rawResponse String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
