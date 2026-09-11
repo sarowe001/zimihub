@@ -65,3 +65,57 @@ export async function callAnthropic(
 
   return (await res.json()) as AnthropicResponse;
 }
+
+// স্ট্রিমিং কল — শুধু কানেকশন খুলে বডি স্ট্রিম ফেরত দেয়। স্ট্যাটাস এখানেই
+// যাচাই করা হয় বলে ক্লায়েন্টকে এক বাইটও পাঠানোর আগেই fallback করা সম্ভব।
+export async function openOpenAICompatibleStream(
+  provider: { baseUrl: string; apiKeyEnv: string },
+  body: OpenAIChatRequest
+): Promise<ReadableStream<Uint8Array>> {
+  const apiKey = resolveProviderKey(provider.apiKeyEnv);
+
+  const res = await fetch(`${provider.baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    // include_usage চাইলে শেষ chunk-এ টোকেন হিসাব পাওয়া যায় (বিলিং-এর জন্য)
+    body: JSON.stringify({
+      ...body,
+      stream: true,
+      stream_options: { include_usage: true },
+    }),
+  });
+
+  if (!res.ok || !res.body) {
+    const text = await res.text().catch(() => "");
+    throw new UpstreamError(res.status, text || `আপস্ট্রিম ত্রুটি: ${res.status}`);
+  }
+
+  return res.body;
+}
+
+export async function openAnthropicStream(
+  provider: { baseUrl: string; apiKeyEnv: string },
+  body: AnthropicRequest
+): Promise<ReadableStream<Uint8Array>> {
+  const apiKey = resolveProviderKey(provider.apiKeyEnv);
+
+  const res = await fetch(`${provider.baseUrl}/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({ ...body, stream: true }),
+  });
+
+  if (!res.ok || !res.body) {
+    const text = await res.text().catch(() => "");
+    throw new UpstreamError(res.status, text || `আপস্ট্রিম ত্রুটি: ${res.status}`);
+  }
+
+  return res.body;
+}

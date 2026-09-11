@@ -16,6 +16,10 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const user = await requireUser();
+  const navItems =
+    user.role === "ADMIN"
+      ? [...NAV_ITEMS, { href: "/dashboard/admin", label: "এডমিন" }]
+      : NAV_ITEMS;
 
   return (
     <div className="flex min-h-screen bg-slate-950">
@@ -24,7 +28,7 @@ export default async function DashboardLayout({
           জিমি<span className="text-emerald-400">হাব</span>
         </Link>
         <nav className="space-y-1">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -56,7 +60,7 @@ export default async function DashboardLayout({
           </div>
         </header>
         <nav className="flex gap-1 overflow-x-auto border-b border-white/10 px-4 py-2 md:hidden">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

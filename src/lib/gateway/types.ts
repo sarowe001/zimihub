@@ -25,6 +25,13 @@ export type UnifiedResult = {
   upstreamModelId: string;
 };
 
+// স্ট্রিমিং-এর সময় upstream থেকে আসা ইভেন্টগুলোকেও একই unified আকারে আনা হয়,
+// তারপর ক্লায়েন্ট যে ফরম্যাট চেয়েছে সেই SSE ফরম্যাটে সিরিয়ালাইজ করা হয়।
+export type UnifiedDelta =
+  | { type: "text"; text: string }
+  | { type: "usage"; promptTokens?: number; completionTokens?: number }
+  | { type: "done"; finishReason: string };
+
 export type OpenAIChatMessage = {
   role: "system" | "user" | "assistant";
   content: string;
@@ -37,6 +44,7 @@ export type OpenAIChatRequest = {
   max_completion_tokens?: number;
   temperature?: number;
   stream?: boolean;
+  stream_options?: { include_usage: boolean };
 };
 
 export type OpenAIChatResponse = {

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/requireUser";
 import { generateApiKey } from "@/lib/apiKey";
+import { takaToPoisha } from "@/lib/money";
 
 export type CreateKeyState = {
   error?: string;
@@ -23,6 +24,16 @@ export async function createApiKeyAction(
     return { error: "একটি নাম দিন (৬০ অক্ষরের কম)" };
   }
 
+  const limitRaw = formData.get("monthlyLimit");
+  let monthlyLimitPoisha: number | null = null;
+  if (typeof limitRaw === "string" && limitRaw.trim() !== "") {
+    const limitTaka = Number(limitRaw);
+    if (!Number.isFinite(limitTaka) || limitTaka <= 0) {
+      return { error: "মাসিক সীমা একটি ধনাত্মক সংখ্যা হতে হবে" };
+    }
+    monthlyLimitPoisha = takaToPoisha(limitTaka);
+  }
+
   const { fullKey, keyHash, keyPrefix } = generateApiKey();
 
   await prisma.apiKey.create({
@@ -31,6 +42,7 @@ export async function createApiKeyAction(
       name: parsed.data,
       keyHash,
       keyPrefix,
+      monthlyLimitPoisha,
     },
   });
 

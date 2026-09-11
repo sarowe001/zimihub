@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
 import { authenticateRequest, GatewayAuthError } from "@/lib/gateway/auth";
-import { runGateway, GatewayError } from "@/lib/gateway/handler";
+import { runGateway, runGatewayStream, GatewayError } from "@/lib/gateway/handler";
 import {
   anthropicRequestToUnified,
   unifiedResultToAnthropicResponse,
 } from "@/lib/gateway/translate";
+import { unifiedToAnthropicSSE } from "@/lib/gateway/stream";
 import type { AnthropicRequest } from "@/lib/gateway/types";
 
 export const runtime = "nodejs";
+
+const SSE_HEADERS = {
+  "Content-Type": "text/event-stream; charset=utf-8",
+  "Cache-Control": "no-cache, no-transform",
+  Connection: "keep-alive",
+};
 
 export async function POST(request: Request) {
   try {
@@ -22,12 +29,20 @@ export async function POST(request: Request) {
     }
 
     const unifiedRequest = anthropicRequestToUnified(body);
-    const { result } = await runGateway({
+    const caller = {
       userId: user.id,
       apiKeyId: apiKey.id,
-      request: unifiedRequest,
-    });
+      balancePoisha: user.balancePoisha,
+    };
 
+    if (unifiedRequest.stream) {
+      const { deltas } = await runGatewayStream({ caller, request: unifiedRequest });
+      return new Response(unifiedToAnthropicSSE(deltas, body.model), {
+        headers: SSE_HEADERS,
+      });
+    }
+
+    const { result } = await runGateway({ caller, request: unifiedRequest });
     return NextResponse.json(unifiedResultToAnthropicResponse(result, body.model));
   } catch (err) {
     return errorResponse(err);

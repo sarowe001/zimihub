@@ -1,6 +1,8 @@
 import { requireUser } from "@/lib/requireUser";
 import { prisma } from "@/lib/prisma";
 import { revokeApiKeyAction } from "@/lib/actions/apiKeys";
+import { monthlySpendPoisha } from "@/lib/gateway/auth";
+import { formatTaka } from "@/lib/money";
 import CreateKeyForm from "./CreateKeyForm";
 
 export default async function KeysPage() {
@@ -9,6 +11,14 @@ export default async function KeysPage() {
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
   });
+
+  const spendByKey = new Map(
+    await Promise.all(
+      keys.map(
+        async (key) => [key.id, await monthlySpendPoisha(key.id)] as const
+      )
+    )
+  );
 
   return (
     <div className="space-y-6">
@@ -31,6 +41,11 @@ export default async function KeysPage() {
                   <p className="font-medium text-white">{key.name}</p>
                   <p className="font-mono text-xs text-slate-500">
                     {key.keyPrefix}••••••••
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    এ মাসে খরচ: {formatTaka(spendByKey.get(key.id) ?? 0)}
+                    {key.monthlyLimitPoisha != null &&
+                      ` / সীমা ${formatTaka(key.monthlyLimitPoisha)}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">

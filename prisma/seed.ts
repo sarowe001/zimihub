@@ -18,10 +18,11 @@ async function main() {
 
   const anthropic = await prisma.provider.upsert({
     where: { slug: "anthropic" },
-    update: {},
+    update: { kind: "ANTHROPIC" },
     create: {
       slug: "anthropic",
       name: "Anthropic",
+      kind: "ANTHROPIC",
       baseUrl: "https://api.anthropic.com/v1",
       apiKeyEnv: "ANTHROPIC_API_KEY",
     },

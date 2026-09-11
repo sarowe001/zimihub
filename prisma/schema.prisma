@@ -38,6 +38,13 @@ enum UsageStatus {
   FALLBACK
 }
 
+// প্রোভাইডারের API কোন ঘরানার — এর ওপর নির্ভর করে কোন ফরম্যাটে রিকোয়েস্ট যাবে।
+// OPENAI = OpenAI Chat Completions (OpenAI, DeepSeek, Google-এর compat endpoint ইত্যাদি)
+enum ProviderKind {
+  OPENAI
+  ANTHROPIC
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -66,6 +73,8 @@ model ApiKey {
   // পূর্ণ API key-র SHA-256 হ্যাশ — plaintext কখনো সংরক্ষণ করা হয় না
   keyHash    String    @unique
   revoked    Boolean   @default(false)
+  // চলতি মাসে এই key দিয়ে সর্বোচ্চ কত পয়সা খরচ করা যাবে (null = সীমাহীন)
+  monthlyLimitPoisha Int?
   lastUsedAt DateTime?
   createdAt  DateTime  @default(now())
 
@@ -78,6 +87,7 @@ model Provider {
   id        String   @id @default(cuid())
   slug      String   @unique // openai, anthropic, deepseek, google, sensenova
   name      String
+  kind      ProviderKind @default(OPENAI)
   baseUrl   String
   // .env-এ থাকা environment variable-এর নাম, যেখানে আসল provider API key রাখা হয়
   apiKeyEnv String

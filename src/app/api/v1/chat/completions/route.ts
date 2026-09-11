@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { authenticateRequest, GatewayAuthError } from "@/lib/gateway/auth";
-import { runGateway, GatewayError } from "@/lib/gateway/handler";
-import { openAIRequestToUnified, unifiedResultToOpenAIResponse } from "@/lib/gateway/translate";
+import { runGateway, runGatewayStream, GatewayError } from "@/lib/gateway/handler";
+import {
+  openAIRequestToUnified,
+  unifiedResultToOpenAIResponse,
+} from "@/lib/gateway/translate";
+import { unifiedToOpenAISSE } from "@/lib/gateway/stream";
 import type { OpenAIChatRequest } from "@/lib/gateway/types";
 
 export const runtime = "nodejs";
+
+const SSE_HEADERS = {
+  "Content-Type": "text/event-stream; charset=utf-8",
+  "Cache-Control": "no-cache, no-transform",
+  Connection: "keep-alive",
+};
 
 export async function POST(request: Request) {
   try {
@@ -19,12 +29,20 @@ export async function POST(request: Request) {
     }
 
     const unifiedRequest = openAIRequestToUnified(body);
-    const { result } = await runGateway({
+    const caller = {
       userId: user.id,
       apiKeyId: apiKey.id,
-      request: unifiedRequest,
-    });
+      balancePoisha: user.balancePoisha,
+    };
 
+    if (unifiedRequest.stream) {
+      const { deltas } = await runGatewayStream({ caller, request: unifiedRequest });
+      return new Response(unifiedToOpenAISSE(deltas, body.model), {
+        headers: SSE_HEADERS,
+      });
+    }
+
+    const { result } = await runGateway({ caller, request: unifiedRequest });
     return NextResponse.json(unifiedResultToOpenAIResponse(result, body.model));
   } catch (err) {
     return errorResponse(err);

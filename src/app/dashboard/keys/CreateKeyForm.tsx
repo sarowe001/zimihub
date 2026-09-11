@@ -38,24 +38,39 @@ export default function CreateKeyForm() {
           </div>
         </div>
       ) : (
-        <form action={formAction} className="flex flex-col gap-3 sm:flex-row">
+        <form action={formAction} className="space-y-3">
           {state.error && (
-            <p className="text-sm text-red-300 sm:hidden">{state.error}</p>
+            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {state.error}
+            </p>
           )}
-          <input
-            type="text"
-            name="name"
-            required
-            placeholder="যেমন: আমার প্রোডাকশন key"
-            className="flex-1 rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
-          />
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
-          >
-            {pending ? "তৈরি হচ্ছে..." : "তৈরি করুন"}
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input
+              type="text"
+              name="name"
+              required
+              placeholder="যেমন: আমার প্রোডাকশন key"
+              className="flex-1 rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+            />
+            <input
+              type="number"
+              name="monthlyLimit"
+              min={1}
+              step="1"
+              placeholder="মাসিক সীমা ৳ (ঐচ্ছিক)"
+              className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400 sm:w-56"
+            />
+            <button
+              type="submit"
+              disabled={pending}
+              className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
+            >
+              {pending ? "তৈরি হচ্ছে..." : "তৈরি করুন"}
+            </button>
+          </div>
+          <p className="text-xs text-slate-500">
+            মাসিক সীমা দিলে ওই key দিয়ে প্রতি মাসে তার বেশি খরচ হবে না।
+          </p>
         </form>
       )}
     </div>
